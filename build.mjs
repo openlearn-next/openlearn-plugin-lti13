@@ -25,14 +25,15 @@ await esbuild.build({
   sourcemap: 'inline',
   external: [
     '@openlearn/plugin-sdk',
-    'react',
-    'react-dom',
     'better-sqlite3'
   ],
 });
 console.log('✅ Server entrypoint bundled to dist/index.js');
 
-// 3. Build frontend if exists
+// 3. 前端入口已移除：原 src/frontend.tsx 是一个「导出 React 组件、没有 activate」的
+//    管理面板，在当前插件契约下根本无法加载 —— 沙箱加载器要求 default export 是
+//    { activate, deactivate }，且不透明源 iframe 里没有 React（详见下方 README 说明）。
+//    保留这段「if existsSync」的兼容分支，方便后续若平台支持远程可见 UI 时再加回来。
 const frontendEntry = join(srcDir, 'frontend.tsx');
 let hasFrontend = false;
 if (existsSync(frontendEntry)) {
@@ -47,7 +48,10 @@ if (existsSync(frontendEntry)) {
     external: ['react', 'react-dom', 'lucide-react'],
   });
   hasFrontend = true;
-  console.log('✅ Frontend component bundled to dist/frontend.js');
+  console.warn(
+    '⚠️  Frontend entry found. 注意：远程插件的前端必须 default export { activate, deactivate }，' +
+      '且不能 import react —— 否则宿主加载器会报 missing activate function。',
+  );
 }
 
 // 4. Copy manifest.json
